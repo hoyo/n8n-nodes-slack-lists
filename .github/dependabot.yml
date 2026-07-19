@@ -7,6 +7,16 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # eslint 10 is blocked: @n8n/eslint-plugin-community-nodes (bundled with
+      # @n8n/node-cli) pins its peer dependency to eslint 9.x. Revisit when
+      # @n8n/node-cli supports eslint 10.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 (native compiler) is blocked: typescript-eslint requires
+      # typescript <6.1.0. Revisit when the toolchain supports it.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
