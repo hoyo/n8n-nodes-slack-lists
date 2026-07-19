@@ -13,17 +13,25 @@ The built-in Slack node does not support Slack Lists; this node fills that gap. 
 > [!NOTE]
 > Slack Lists are only available on **paid Slack plans**.
 
-- [Installation](#installation)
-- [Operations](#operations)
-- [Credentials](#credentials)
-- [Usage](#usage)
-- [Using as an AI Agent tool](#using-as-an-ai-agent-tool)
-- [Compatibility](#compatibility)
-- [Troubleshooting](#troubleshooting)
-- [Known limitations](#known-limitations)
-- [Development](#development)
-- [Resources](#resources)
-- [Version history](#version-history)
+- [n8n-nodes-slack-lists](#n8n-nodes-slack-lists)
+  - [Installation](#installation)
+    - [Community Nodes (recommended)](#community-nodes-recommended)
+    - [Manual installation (Docker / self-hosted)](#manual-installation-docker--self-hosted)
+  - [Operations](#operations)
+    - [Item](#item)
+    - [List](#list)
+    - [Highlights](#highlights)
+  - [Credentials](#credentials)
+    - [1. Prepare the Slack app (Slack side)](#1-prepare-the-slack-app-slack-side)
+    - [2. Configure the credential (n8n side)](#2-configure-the-credential-n8n-side)
+  - [Usage](#usage)
+  - [Using as an AI Agent tool](#using-as-an-ai-agent-tool)
+  - [Compatibility](#compatibility)
+  - [Troubleshooting](#troubleshooting)
+  - [Known limitations](#known-limitations)
+  - [Development](#development)
+  - [Resources](#resources)
+  - [License](#license)
 
 ## Installation
 
@@ -176,12 +184,6 @@ npm run dev     # run a local n8n with the node linked
 - [Slack Lists API reference](https://docs.slack.dev/reference/methods?family=lists)
 - [Slack Lists product page](https://slack.com/features/lists)
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
-
-## Version history
-
-### 0.1.0
-
-- Initial release: Item (Create / Get / Get Many / Update / Delete / Delete Many) and List (Create / Get / Grant Access / Revoke Access) with dynamic column mapping, List picker and simplified output
 
 ## License
 
