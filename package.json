@@ -40,7 +40,8 @@
 		"strict": false,
 		"credentials": [],
 		"nodes": [
-			"dist/nodes/SlackLists/SlackLists.node.js"
+			"dist/nodes/SlackLists/SlackLists.node.js",
+			"dist/nodes/SlackLists/SlackListsTrigger.node.js"
 		]
 	},
 	"devDependencies": {
