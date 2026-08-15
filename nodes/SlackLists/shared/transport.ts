@@ -4,11 +4,12 @@ import type {
 	IHttpRequestMethods,
 	IHttpRequestOptions,
 	ILoadOptionsFunctions,
+	IPollFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
-type SlackContext = IExecuteFunctions | ILoadOptionsFunctions;
+type SlackContext = IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions;
 
 const ERROR_MESSAGES: Record<string, string> = {
 	invalid_auth: 'The Slack access token is invalid',

@@ -20,6 +20,7 @@ The built-in Slack node does not support Slack Lists; this node fills that gap. 
   - [Operations](#operations)
     - [Item](#item)
     - [List](#list)
+    - [Trigger](#trigger)
     - [Highlights](#highlights)
   - [Credentials](#credentials)
     - [1. Prepare the Slack app (Slack side)](#1-prepare-the-slack-app-slack-side)
@@ -74,6 +75,33 @@ npm install n8n-nodes-slack-lists
 | Get | Retrieve a List's metadata and column schema | `files.info` |
 | Grant Access | Grant users or channels read/write/owner access | `slackLists.access.set` |
 | Revoke Access | Revoke access from users or channels | `slackLists.access.delete` |
+
+### Trigger
+
+The **Slack Lists Trigger** node starts a workflow when a List is edited. Slack has no Lists webhook/event, so it **polls** — set the frequency with the standard **Poll Times** control (minimum once per minute).
+
+| Node | Description | API method |
+| --- | --- | --- |
+| Slack Lists Trigger | Fires when the picked List is edited (any cell/row change) | `files.info` |
+
+How detection works:
+
+- Each poll reads the List's **whole-List last-edit time** — `max(updated, edit_timestamp)` from `files.info` — and fires only when it advances past the previous poll.
+- The **first poll after activation does not fire**; it just records the current state, so an existing List does not trigger a spurious run on activation.
+- Polls with no change return nothing and are **not** kept in the executions list, so a 1-minute interval does not clutter your history.
+- Output is a single item describing *when / who / which List* changed — handy as an audit trail:
+
+  ```json
+  {
+    "list_id": "F0123ABCDEF",
+    "title": "My List",
+    "updated": 1784589177,
+    "last_editor": "U0123ABCD",
+    "permalink": "https://your-team.slack.com/lists/T0123456/F0123ABCDEF"
+  }
+  ```
+
+- It reports *that* the List changed, not *which row* or whether a row was added/updated/removed. To act on the changed rows, follow the trigger with a **Slack Lists → Item → Get Many** node.
 
 ### Highlights
 
@@ -164,6 +192,7 @@ The Get a List operation is handy for agents: it returns the List's column schem
 ## Known limitations
 
 - The Slack API provides no method to delete a List, and `slackLists.update` can only change name/description/todo-mode (columns cannot be modified after creation), so these are not exposed.
+- The **Trigger** node detects *that* a List was edited (with who/when), but not *which* row changed or whether it was added/updated/removed — Slack exposes no per-row change feed. Pair it with an **Item → Get Many** step to inspect the current rows. It also relies on `files.info`'s `edit_timestamp`, an undocumented field; if Slack ever drops it, detection falls back to `updated`.
 - List export (`slackLists.download.*`) is out of scope.
 - This package references the built-in `slackApi` credential type and therefore does not target n8n Cloud's verified community node program. Self-hosted instances are unaffected.
 

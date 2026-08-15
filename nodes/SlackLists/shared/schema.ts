@@ -1,4 +1,9 @@
-import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
+import type {
+	IDataObject,
+	IExecuteFunctions,
+	ILoadOptionsFunctions,
+	IPollFunctions,
+} from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { slackApiRequest } from './transport';
 
@@ -45,7 +50,7 @@ export const READ_ONLY_COLUMN_TYPES = [
  * Requires the files:read scope.
  */
 export async function getListInfo(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
 	listId: string,
 	cache?: Map<string, ListInfo>,
 ): Promise<ListInfo> {
