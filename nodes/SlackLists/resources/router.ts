@@ -1,7 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import * as itemCreate from './item/create';
-import * as itemDelete from './item/deleteItem';
+import * as itemDelete from './item/delete';
 import * as itemDeleteMany from './item/deleteMany';
 import * as itemGet from './item/get';
 import * as itemGetAll from './item/getAll';

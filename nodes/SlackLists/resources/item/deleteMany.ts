@@ -35,7 +35,7 @@ export async function execute(
 
 		await slackApiRequest.call(this, 'POST', '/slackLists.items.deleteMultiple', {
 			list_id: listId,
-			item_ids: itemIds,
+			ids: itemIds,
 		});
 
 		return { success: true, item_ids: itemIds };
