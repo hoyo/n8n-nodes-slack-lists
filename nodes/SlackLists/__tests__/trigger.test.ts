@@ -16,18 +16,18 @@ const node = {
 	parameters: {},
 };
 
-const LIST_ID = 'F0BEU4URLDV';
+const LIST_ID = 'F0123ABCDEF';
 
 function fileResponse(file: IDataObject = {}) {
 	return {
 		ok: true,
 		file: {
 			id: LIST_ID,
-			title: 'Outlookカレンダー同期',
+			title: 'My List',
 			updated: 1784589177,
 			edit_timestamp: 1784589177,
-			last_editor: 'U0ANGJRLU0K',
-			permalink: 'https://estie.enterprise.slack.com/lists/TD3SM3NDB/F0BEU4URLDV',
+			last_editor: 'U0123ABCD',
+			permalink: 'https://your-team.slack.com/lists/T0123456/F0123ABCDEF',
 			list_limits: { row_count: 5, row_count_limit: 5000 },
 			list_metadata: { schema: [], todo_mode: false },
 			...file,
@@ -80,9 +80,9 @@ describe('SlackListsTrigger.poll', () => {
 		expect(result).not.toBeNull();
 		expect(result![0][0].json).toMatchObject({
 			list_id: LIST_ID,
-			title: 'Outlookカレンダー同期',
+			title: 'My List',
 			updated: '2026-07-21T02:13:20.000Z',
-			last_editor: 'U0ANGJRLU0K',
+			last_editor: 'U0123ABCD',
 		});
 		// The watermark itself stays a unix timestamp — only the output is ISO.
 		expect(staticData.lastMaxTs).toBe(1784600000);

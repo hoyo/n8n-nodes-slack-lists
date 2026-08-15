@@ -207,7 +207,7 @@ describe('simplifyItem', () => {
 			{
 				key: 'title',
 				value: '[{"type":"rich_text"}]',
-				text: '請求書発行',
+				text: 'サンプルタスク',
 				rich_text: [],
 				column_id: 'ColTitle',
 			},
@@ -228,7 +228,7 @@ describe('simplifyItem', () => {
 			// Slack sends this one as a string; it is normalised just the same.
 			updated_timestamp: '2026-06-29T04:39:20.000Z',
 			fields: {
-				タイトル: '請求書発行',
+				タイトル: 'サンプルタスク',
 				対応状況: 'day_3',
 				担当者: 'U03',
 				メンバー: ['U03', 'U04'],
