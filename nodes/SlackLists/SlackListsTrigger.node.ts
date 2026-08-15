@@ -9,6 +9,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 import { getLists } from './methods/listSearch';
 import { listRLC } from './shared/descriptions';
 import { getListInfo } from './shared/schema';
+import { toIsoString } from './shared/utils';
 
 /**
  * Builds the trigger's output item from a raw files.info `file` object.
@@ -19,7 +20,7 @@ export function buildListUpdateOutput(file: IDataObject, currentMaxTs: number): 
 	return {
 		list_id: file.id,
 		title: file.title,
-		updated: currentMaxTs,
+		updated: toIsoString(currentMaxTs),
 		last_editor: file.last_editor,
 		permalink: file.permalink,
 	};

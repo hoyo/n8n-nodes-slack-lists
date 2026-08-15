@@ -16,18 +16,18 @@ const node = {
 	parameters: {},
 };
 
-const LIST_ID = 'F0BEU4URLDV';
+const LIST_ID = 'F0123ABCDEF';
 
 function fileResponse(file: IDataObject = {}) {
 	return {
 		ok: true,
 		file: {
 			id: LIST_ID,
-			title: 'Outlookカレンダー同期',
+			title: 'My List',
 			updated: 1784589177,
 			edit_timestamp: 1784589177,
-			last_editor: 'U0ANGJRLU0K',
-			permalink: 'https://estie.enterprise.slack.com/lists/TD3SM3NDB/F0BEU4URLDV',
+			last_editor: 'U0123ABCD',
+			permalink: 'https://your-team.slack.com/lists/T0123456/F0123ABCDEF',
 			list_limits: { row_count: 5, row_count_limit: 5000 },
 			list_metadata: { schema: [], todo_mode: false },
 			...file,
@@ -80,10 +80,11 @@ describe('SlackListsTrigger.poll', () => {
 		expect(result).not.toBeNull();
 		expect(result![0][0].json).toMatchObject({
 			list_id: LIST_ID,
-			title: 'Outlookカレンダー同期',
-			updated: 1784600000,
-			last_editor: 'U0ANGJRLU0K',
+			title: 'My List',
+			updated: '2026-07-21T02:13:20.000Z',
+			last_editor: 'U0123ABCD',
 		});
+		// The watermark itself stays a unix timestamp — only the output is ISO.
 		expect(staticData.lastMaxTs).toBe(1784600000);
 	});
 
@@ -91,26 +92,26 @@ describe('SlackListsTrigger.poll', () => {
 		const { ctx, staticData } = makeCtx('manual', {});
 		const result = await poll(ctx);
 		expect(result).not.toBeNull();
-		expect(result![0][0].json.updated).toBe(1784589177);
+		expect(result![0][0].json.updated).toBe('2026-07-20T23:12:57.000Z');
 		expect(staticData.lastMaxTs).toBeUndefined();
 	});
 
 	it('uses edit_timestamp when it is newer than updated', async () => {
 		vi.mocked(slackApiRequest).mockResolvedValue(
-			fileResponse({ updated: 100, edit_timestamp: 200 }) as never,
+			fileResponse({ updated: 1784500000, edit_timestamp: 1784600000 }) as never,
 		);
 		const { ctx } = makeCtx('manual');
 		const result = await poll(ctx);
-		expect(result![0][0].json.updated).toBe(200);
+		expect(result![0][0].json.updated).toBe('2026-07-21T02:13:20.000Z');
 	});
 
 	it('uses updated when it is newer than edit_timestamp', async () => {
 		vi.mocked(slackApiRequest).mockResolvedValue(
-			fileResponse({ updated: 300, edit_timestamp: 200 }) as never,
+			fileResponse({ updated: 1784600000, edit_timestamp: 1784500000 }) as never,
 		);
 		const { ctx } = makeCtx('manual');
 		const result = await poll(ctx);
-		expect(result![0][0].json.updated).toBe(300);
+		expect(result![0][0].json.updated).toBe('2026-07-21T02:13:20.000Z');
 	});
 });
 
@@ -124,12 +125,12 @@ describe('buildListUpdateOutput', () => {
 				permalink: 'https://x/F1',
 				list_limits: { row_count: 42 },
 			},
-			999,
+			1784600000,
 		);
 		expect(output).toEqual({
 			list_id: 'F1',
 			title: 'My List',
-			updated: 999,
+			updated: '2026-07-21T02:13:20.000Z',
 			last_editor: 'U1',
 			permalink: 'https://x/F1',
 		});
