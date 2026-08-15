@@ -64,7 +64,6 @@ export class SlackLists implements INodeType {
 		},
 	};
 
-	// eslint-disable-next-line @n8n/community-nodes/require-continue-on-fail -- continueOnFail is handled per item in shared/utils.ts processItems
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		return await router.call(this);
 	}
