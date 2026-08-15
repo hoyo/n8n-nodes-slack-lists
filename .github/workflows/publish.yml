@@ -1,4 +1,4 @@
-# Publishes this n8n community node package to npm on every version tag push.
+# Publishes this n8n community node package to npm, with a provenance attestation.
 #
 # Starting May 1 2026, n8n requires all community nodes to be published via
 # GitHub Actions with npm provenance statements. This workflow satisfies that
@@ -19,7 +19,9 @@
 #
 # ─── ONE-TIME SETUP ────────────────────────────────────────────────────────────
 #
-# Option A — OIDC Trusted Publishing (recommended, no long-lived secrets):
+# Publishing authenticates through npm OIDC Trusted Publishing — no long-lived
+# secrets, so this repository holds no npm token. Set it up once on npmjs.com:
+#
 #   1. Log in to npmjs.com and open your package's settings.
 #   2. Under "Publish access" → "Trusted Publishers", click "Add a publisher".
 #   3. Select GitHub Actions and fill in:
@@ -27,41 +29,43 @@
 #        Repository name:  <your-repo-name>
 #        Workflow name:    publish.yml
 #        Environment:      (leave blank unless you use GitHub Environments)
-#   4. Leave the NPM_TOKEN secret unset in this repository. GitHub's OIDC
-#      token is used instead — no secret ever touches your repo settings.
 #
-# Option B — npm Automation Token (fallback):
-#   1. On npmjs.com: Access Tokens → Generate New Token → Granular Access Token.
-#      Scope it to this package with "Read and write" publish permission.
-#   2. In GitHub: Settings → Secrets and variables → Actions → New secret.
-#      Name it NPM_TOKEN and paste the token value.
-#
-# Both options work with --provenance. Provenance is signed by GitHub's OIDC
-# infrastructure regardless of how npm authentication is handled.
-#
-# ─── TAG CONVENTION ────────────────────────────────────────────────────────────
-#
-# This workflow triggers on tags matching "*.*.*" (e.g. 0.2.0).
-# If you prefer tags with a "v" prefix (e.g. v0.2.0), change the filter to:
-#   tags: ['v*.*.*']
+# The trust is bound to this file's *name*, so the publish step has to stay in
+# this workflow — that is why release.yml calls it instead of publishing itself.
+# The same OIDC infrastructure signs the provenance attestation.
 #
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
-# Run the following command locally to start an interactive release:
+# Releases run entirely on GitHub Actions: Actions → Release → Run workflow, and
+# pick patch / minor / major. See release.yml — it bumps the version, regenerates
+# the changelog, commits, tags, and then calls this workflow to publish.
 #
-#   npm run release
-#
-# This will lint, build, prompt for a version bump, update the changelog,
-# commit, tag, and push — which triggers this workflow to publish to npm.
+# Tags are the bare version (e.g. 1.1.0), no "v" prefix — that is release-it's
+# default, and this workflow takes whichever tag it is handed.
 
 name: Publish
 
 on:
-  push:
-    tags:
-      # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
-      # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
-      - '*.*.*'
+  # The normal path: release.yml calls this right after it creates the tag.
+  # (It has to call it explicitly — a tag pushed with GITHUB_TOKEN raises no
+  # `push` event, as GitHub suppresses those to prevent workflow loops.)
+  workflow_call:
+    inputs:
+      ref:
+        description: Tag to check out and publish.
+        type: string
+        required: true
+
+  # The recovery path: re-publish an existing tag by hand, for when release.yml
+  # tagged successfully but the publish below failed. There is deliberately no
+  # `push: tags` trigger — publishing must not be reachable by tagging alone,
+  # which is how a release once reached npm without a changelog entry.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to check out and publish (e.g. 1.1.0).
+        type: string
+        required: true
 
 jobs:
   publish:
@@ -76,6 +80,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Always an explicit tag: on workflow_call the release job created it
+          # moments ago, on workflow_dispatch it was typed in by hand.
+          ref: ${{ inputs.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -87,15 +95,7 @@ jobs:
         run: npm ci
 
       - name: Release
-        # Publishes to npm with a provenance attestation (requires id-token: write above).
-        # Lint and build run automatically as part of the release process.
-        #
-        # Option A (OIDC): leave NPM_TOKEN unset — the token step is skipped and
-        #   npm uses the OIDC exchange instead.
-        # Option B (token): set NPM_TOKEN in repo secrets — it is written to
-        #   .npmrc here before publishing.
-        run: |
-          [ -n "$NPM_TOKEN" ] && npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm run release
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Publishes to npm with a provenance attestation (requires id-token: write
+        # above). npm authenticates via the OIDC exchange, so there is no token to
+        # configure. Lint and build run automatically as part of the release process.
+        run: npm run release
