@@ -1,6 +1,6 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { itemCreateDescription } from './create';
-import { itemDeleteDescription } from './deleteItem';
+import { itemDeleteDescription } from './delete';
 import { itemDeleteManyDescription } from './deleteMany';
 import { itemGetDescription } from './get';
 import { itemGetAllDescription } from './getAll';
