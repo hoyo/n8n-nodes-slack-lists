@@ -1,7 +1,34 @@
-# Cuts a release entirely on GitHub Actions — version bump, changelog, tag,
-# GitHub release, then npm publish — so no step depends on a developer's machine.
+# Cuts a release entirely on GitHub Actions: version bump, changelog, tag, GitHub
+# release, and npm publish with a provenance attestation. Nothing depends on a
+# developer's machine.
 #
-# ─── WHY THIS EXISTS ───────────────────────────────────────────────────────────
+# ─── PREREQUISITES ─────────────────────────────────────────────────────────────
+#
+# @n8n/node-cli ≥ 0.23.0 is required. Earlier versions do not support the
+# provenance flag passed by `npm run release` in CI, and the publish step will
+# fail. Check with `npm list @n8n/node-cli`; upgrade with
+# `npm install --save-dev @n8n/node-cli@latest`.
+#
+# ─── ONE-TIME SETUP ────────────────────────────────────────────────────────────
+#
+# Publishing authenticates through npm OIDC Trusted Publishing — no long-lived
+# secrets, so this repository holds no npm token. Set it up once on npmjs.com:
+#
+#   1. Log in to npmjs.com and open your package's settings.
+#   2. Under "Publish access" → "Trusted Publishers", click "Add a publisher".
+#   3. Select GitHub Actions and fill in:
+#        Repository owner: <your-github-username-or-org>
+#        Repository name:  <your-repo-name>
+#        Workflow name:    release.yml
+#        Environment:      (leave blank unless you use GitHub Environments)
+#
+# The trust is bound to this file's *name*. If you rename or split this file,
+# update the setting to match — npm validates the name of the workflow that was
+# invoked, and a mismatch fails with ENEEDAUTH. That is also why bump and publish
+# live in one file: when a workflow calls a reusable one, npm checks the *caller*
+# rather than the workflow containing the publish step.
+#
+# ─── WHY release-it IS INVOKED DIRECTLY ────────────────────────────────────────
 #
 # `npm run release` (@n8n/node-cli) behaves differently depending on where it
 # runs. Locally it bumps the version, regenerates the changelog, commits, tags,
@@ -10,20 +37,15 @@
 # only, with provenance enabled.
 #
 # So the bump cannot be delegated to `npm run release` from CI. This workflow
-# calls release-it directly with the same flags the CLI passes, plus an explicit
-# increment — the CLI runs release-it non-interactively, which always resolves to
-# a patch bump.
-#
-# ─── HOW IT CONNECTS TO publish.yml ────────────────────────────────────────────
-#
-# A tag pushed with GITHUB_TOKEN does not raise a `push` event, so publish.yml
-# would never fire on its own. This workflow calls it directly via workflow_call
-# instead. Publishing still happens inside publish.yml, which is what npm Trusted
-# Publishing is bound to.
+# calls release-it directly for that half, with an explicit increment — the CLI
+# runs release-it non-interactively, which always resolves to a patch bump — and
+# then uses `npm run release` for the publish half, exactly as documented.
 #
 # ─── USAGE ─────────────────────────────────────────────────────────────────────
 #
-#   Actions → Release → Run workflow → choose patch / minor / major
+#   Normal release:  Actions → Release → Run workflow → pick patch/minor/major
+#   Recovery:        …and set "republish" to an existing tag (e.g. 1.1.0) to skip
+#                    the bump and only re-run the publish for that tag.
 #
 # Run it from `main`; release-it refuses to release from any other branch.
 
@@ -40,6 +62,10 @@ on:
           - minor
           - major
         default: patch
+      republish:
+        description: 'Recovery only: existing tag to publish as-is (e.g. 1.1.0). Leave empty for a normal release.'
+        type: string
+        required: false
 
 # Two releases must never interleave — they would race on the tag and changelog.
 concurrency:
@@ -48,21 +74,22 @@ concurrency:
 
 jobs:
   release:
-    name: Bump, changelog and tag
+    name: Release
     runs-on: ubuntu-latest
 
     permissions:
       # release-it pushes the release commit and tag, and creates the GitHub release.
       contents: write
-
-    outputs:
-      tag: ${{ steps.release.outputs.tag }}
+      # Required to mint an OIDC token for npm provenance and authentication.
+      id-token: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # auto-changelog walks the full history and needs every existing tag.
           fetch-depth: 0
+          # Empty on a normal release, which checks out the default branch.
+          ref: ${{ inputs.republish }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -74,6 +101,7 @@ jobs:
         run: npm ci
 
       - name: Prepare git
+        if: ${{ !inputs.republish }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -82,16 +110,15 @@ jobs:
           git branch --set-upstream-to="origin/${GITHUB_REF_NAME}" "${GITHUB_REF_NAME}"
 
       - name: Bump, changelog, tag and GitHub release
-        id: release
+        if: ${{ !inputs.republish }}
         # Mirrors the flags @n8n/node-cli passes when run locally, with the
-        # increment made explicit. npm.publish stays off: publishing belongs to
-        # publish.yml so the package keeps its provenance attestation.
+        # increment made explicit. npm.publish stays off — the next step handles
+        # publishing so that it goes through the CLI's provenance path.
         #
-        # release-it stays a devDependency — the CLI shells out to it for local
-        # releases, so it cannot be dropped — and npx resolves node_modules/.bin
-        # before the registry, so this runs that pinned version rather than
-        # fetching one. auto-changelog is deliberately not a dependency: npx
-        # fetches it per run, exactly as the CLI does locally.
+        # release-it stays a devDependency (the CLI shells out to it for local
+        # releases) and npx resolves node_modules/.bin before the registry, so
+        # this runs that pinned version. auto-changelog is deliberately not a
+        # dependency: npx fetches it per run, exactly as the CLI does locally.
         run: |
           npx release-it '${{ inputs.increment }}' \
             --ci \
@@ -107,18 +134,13 @@ jobs:
             --hooks.before:init='npm run lint && npm run build' \
             --hooks.after:bump='npx auto-changelog -p' \
             --npm.publish=false
-          VERSION="$(node -p 'require("./package.json").version')"
-          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish:
-    name: Publish
-    needs: release
-    permissions:
-      # Required to mint an OIDC token for npm provenance attestation.
-      id-token: write
-      contents: read
-    uses: ./.github/workflows/publish.yml
-    with:
-      ref: ${{ needs.release.outputs.tag }}
+      - name: Publish to npm
+        # In CI, `npm run release` runs lint and build and then publishes with
+        # NPM_CONFIG_PROVENANCE=true. npm authenticates via the OIDC exchange, so
+        # there is no token to configure. The working tree is already at the
+        # version to publish — bumped by the step above, or checked out from the
+        # tag given in "republish".
+        run: npm run release
