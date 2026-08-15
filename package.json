@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-slack-lists",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "n8n community node for Slack Lists (slackLists.* API)",
 	"license": "MIT",
 	"homepage": "https://github.com/hoyo/n8n-nodes-slack-lists",
@@ -44,11 +44,11 @@
 		]
 	},
 	"devDependencies": {
-		"@n8n/node-cli": "0.39.3",
+		"@n8n/node-cli": "0.43.1",
 		"eslint": "9.39.5",
 		"n8n-workflow": "2.16.0",
-		"prettier": "3.9.5",
-		"release-it": "21.0.0",
+		"prettier": "3.9.6",
+		"release-it": "21.0.1",
 		"typescript": "6.0.3",
 		"vitest": "4.1.10"
 	},
