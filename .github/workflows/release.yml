@@ -1,0 +1,124 @@
+# Cuts a release entirely on GitHub Actions — version bump, changelog, tag,
+# GitHub release, then npm publish — so no step depends on a developer's machine.
+#
+# ─── WHY THIS EXISTS ───────────────────────────────────────────────────────────
+#
+# `npm run release` (@n8n/node-cli) behaves differently depending on where it
+# runs. Locally it bumps the version, regenerates the changelog, commits, tags,
+# pushes and creates the GitHub release — but deliberately does NOT publish to
+# npm. Inside a GitHub Action it does the opposite: lint, build and `npm publish`
+# only, with provenance enabled.
+#
+# So the bump cannot be delegated to `npm run release` from CI. This workflow
+# calls release-it directly with the same flags the CLI passes, plus an explicit
+# increment — the CLI runs release-it non-interactively, which always resolves to
+# a patch bump.
+#
+# ─── HOW IT CONNECTS TO publish.yml ────────────────────────────────────────────
+#
+# A tag pushed with GITHUB_TOKEN does not raise a `push` event, so publish.yml
+# would never fire on its own. This workflow calls it directly via workflow_call
+# instead. Publishing still happens inside publish.yml, which is what npm Trusted
+# Publishing is bound to.
+#
+# ─── USAGE ─────────────────────────────────────────────────────────────────────
+#
+#   Actions → Release → Run workflow → choose patch / minor / major
+#
+# Run it from `main`; release-it refuses to release from any other branch.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: How to bump the version
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+# Two releases must never interleave — they would race on the tag and changelog.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Bump, changelog and tag
+    runs-on: ubuntu-latest
+
+    permissions:
+      # release-it pushes the release commit and tag, and creates the GitHub release.
+      contents: write
+
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # auto-changelog walks the full history and needs every existing tag.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # release-it's --git.requireUpstream check needs a tracking branch,
+          # which actions/checkout does not set up on its own.
+          git branch --set-upstream-to="origin/${GITHUB_REF_NAME}" "${GITHUB_REF_NAME}"
+
+      - name: Bump, changelog, tag and GitHub release
+        id: release
+        # Mirrors the flags @n8n/node-cli passes when run locally, with the
+        # increment made explicit. npm.publish stays off: publishing belongs to
+        # publish.yml so the package keeps its provenance attestation.
+        #
+        # release-it stays a devDependency — the CLI shells out to it for local
+        # releases, so it cannot be dropped — and npx resolves node_modules/.bin
+        # before the registry, so this runs that pinned version rather than
+        # fetching one. auto-changelog is deliberately not a dependency: npx
+        # fetches it per run, exactly as the CLI does locally.
+        run: |
+          npx release-it '${{ inputs.increment }}' \
+            --non-interactive \
+            --git.requireBranch=main \
+            --git.requireCleanWorkingDir \
+            --git.requireUpstream \
+            --git.requireCommits \
+            --git.commit \
+            --git.tag \
+            --git.push \
+            --git.changelog='npx auto-changelog --stdout --unreleased --commit-limit false -u --hide-credit' \
+            --github.release \
+            --hooks.before:init='npm run lint && npm run build' \
+            --hooks.after:bump='npx auto-changelog -p' \
+            --npm.publish=false
+          VERSION="$(node -p 'require("./package.json").version')"
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Publish
+    needs: release
+    permissions:
+      # Required to mint an OIDC token for npm provenance attestation.
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/publish.yml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
