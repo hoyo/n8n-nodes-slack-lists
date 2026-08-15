@@ -94,7 +94,7 @@ jobs:
         # fetches it per run, exactly as the CLI does locally.
         run: |
           npx release-it '${{ inputs.increment }}' \
-            --non-interactive \
+            --ci \
             --git.requireBranch=main \
             --git.requireCleanWorkingDir \
             --git.requireUpstream \
