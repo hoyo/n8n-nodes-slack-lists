@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { listRLC } from '../../shared/descriptions';
 import { getListInfo } from '../../shared/schema';
-import { processItems } from '../../shared/utils';
+import { processItems, toIsoString } from '../../shared/utils';
 
 const show = {
 	resource: ['list'],
@@ -50,8 +50,8 @@ export async function execute(
 			row_count: limits.row_count,
 			archived_row_count: limits.archived_row_count,
 			column_count: limits.column_count,
-			created: file.created,
-			updated: file.updated,
+			created: toIsoString(file.created),
+			updated: toIsoString(file.updated),
 			permalink: file.permalink,
 			schema: info.schema,
 		};

@@ -2,6 +2,7 @@ import type { IDataObject, IExecuteFunctions } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import type { ListColumn } from './schema';
 import { READ_ONLY_COLUMN_TYPES } from './schema';
+import { toIsoString } from './utils';
 
 /** Wraps plain text into the minimal rich_text block structure Slack expects for text cells */
 export function toRichTextBlocks(text: string): IDataObject[] {
@@ -177,10 +178,10 @@ export function simplifyItem(record: IDataObject, schema: ListColumn[]): IDataOb
 	return {
 		id: record.id,
 		list_id: record.list_id,
-		date_created: record.date_created,
+		date_created: toIsoString(record.date_created),
 		created_by: record.created_by,
 		updated_by: record.updated_by,
-		updated_timestamp: record.updated_timestamp,
+		updated_timestamp: toIsoString(record.updated_timestamp),
 		...(record.parent_record_id ? { parent_record_id: record.parent_record_id } : {}),
 		fields,
 	};

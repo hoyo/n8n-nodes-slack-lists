@@ -1,7 +1,7 @@
 import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
-import { processItems, splitIds } from '../shared/utils';
+import { processItems, splitIds, toIsoString } from '../shared/utils';
 
 const node = {
 	id: '1',
@@ -80,4 +80,25 @@ describe('splitIds', () => {
 	it('drops empty entries', () => {
 		expect(splitIds('Rec01,,')).toEqual(['Rec01']);
 	});
+});
+
+describe('toIsoString', () => {
+	it('converts unix seconds to an ISO 8601 string', () => {
+		expect(toIsoString(1784589177)).toBe('2026-07-20T23:12:57.000Z');
+	});
+
+	it('accepts the numeric strings Slack sends for updated_timestamp', () => {
+		expect(toIsoString('1784589177')).toBe('2026-07-20T23:12:57.000Z');
+	});
+
+	it('keeps the epoch itself rather than treating 0 as missing', () => {
+		expect(toIsoString(0)).toBe('1970-01-01T00:00:00.000Z');
+	});
+
+	it.each([undefined, null, '', 'not-a-timestamp', NaN])(
+		'returns undefined for %p so the field is dropped',
+		(value) => {
+			expect(toIsoString(value)).toBeUndefined();
+		},
+	);
 });

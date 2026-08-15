@@ -222,10 +222,11 @@ describe('simplifyItem', () => {
 		expect(simplifyItem(record, schema)).toEqual({
 			id: 'Rec01',
 			list_id: 'F01',
-			date_created: 1782707931,
+			date_created: '2026-06-29T04:38:51.000Z',
 			created_by: 'U01',
 			updated_by: 'U02',
-			updated_timestamp: '1782707960',
+			// Slack sends this one as a string; it is normalised just the same.
+			updated_timestamp: '2026-06-29T04:39:20.000Z',
 			fields: {
 				タイトル: '請求書発行',
 				対応状況: 'day_3',

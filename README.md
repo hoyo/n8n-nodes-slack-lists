@@ -95,7 +95,7 @@ How detection works:
   {
     "list_id": "F0123ABCDEF",
     "title": "My List",
-    "updated": 1784589177,
+    "updated": "2026-07-20T23:12:57.000Z",
     "last_editor": "U0123ABCD",
     "permalink": "https://your-team.slack.com/lists/T0123456/F0123ABCDEF"
   }
@@ -107,7 +107,7 @@ How detection works:
 
 - **List picker** — search the Lists visible to your token, or paste a List URL / ID.
 - **Dynamic column mapping** — Item Create/Update load the List's actual columns (text, select, user, date, checkbox, rating, …) into n8n's column mapping UI. Select columns become dropdowns with their real choices, and plain text is converted to Slack's `rich_text` format automatically.
-- **Simplified output** — items are returned as `{ id, ..., fields: { "Column Name": value } }` instead of the raw cell format. Toggle off via the **Simplify** parameter to get raw API responses.
+- **Simplified output** — items are returned as `{ id, ..., fields: { "Column Name": value } }` instead of the raw cell format, and timestamps (`date_created`, `updated_timestamp`, List `created`/`updated`) are converted to ISO 8601 strings so n8n expressions can use them directly. Toggle off via the **Simplify** parameter to get raw API responses, unix timestamps included.
 
 ## Credentials
 
@@ -149,7 +149,7 @@ With **Simplify** enabled (default), items come out ready to use:
 {
   "id": "Rec0123ABCDEF",
   "list_id": "F0123ABCDEF",
-  "date_created": 1784460441,
+  "date_created": "2026-07-19T11:27:21.000Z",
   "fields": {
     "Title": "Invoice issued",
     "Status": "in_review",
