@@ -1,5 +1,6 @@
 import type { IDataObject, IPollFunctions } from 'n8n-workflow';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NodeApiError } from 'n8n-workflow';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildListUpdateOutput, SlackListsTrigger } from '../SlackListsTrigger.node';
 import { slackApiRequest } from '../shared/transport';
 
@@ -112,6 +113,59 @@ describe('SlackListsTrigger.poll', () => {
 		const { ctx } = makeCtx('manual');
 		const result = await poll(ctx);
 		expect(result![0][0].json.updated).toBe('2026-07-21T02:13:20.000Z');
+	});
+});
+
+describe('SlackListsTrigger.poll retries', () => {
+	beforeEach(() => {
+		vi.mocked(slackApiRequest).mockReset();
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	/** An axios-shaped connection failure, as the HTTP helper surfaces it. */
+	const timeout = () => Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' });
+
+	it('rides out a connection timeout instead of failing the poll', async () => {
+		vi.mocked(slackApiRequest)
+			.mockRejectedValueOnce(timeout())
+			.mockResolvedValue(fileResponse({ updated: 1784600000 }) as never);
+
+		const { ctx, staticData } = makeCtx('trigger', { lastMaxTs: 1784589177 });
+		const result = poll(ctx);
+		await vi.runAllTimersAsync();
+
+		expect((await result)![0][0].json.list_id).toBe(LIST_ID);
+		expect(staticData.lastMaxTs).toBe(1784600000);
+		expect(slackApiRequest).toHaveBeenCalledTimes(2);
+	});
+
+	it('surfaces the error once the retries are exhausted', async () => {
+		vi.mocked(slackApiRequest).mockRejectedValue(timeout());
+
+		const { ctx, staticData } = makeCtx('trigger', { lastMaxTs: 1784589177 });
+		// Attach the rejection handler before the timers run, so the failing
+		// attempts never look like an unhandled rejection.
+		const assertion = expect(poll(ctx)).rejects.toThrow(/ETIMEDOUT/);
+		await vi.runAllTimersAsync();
+
+		await assertion;
+		// The watermark is untouched, so the next poll still sees any missed edit.
+		expect(staticData.lastMaxTs).toBe(1784589177);
+		expect(slackApiRequest).toHaveBeenCalledTimes(3);
+	});
+
+	it('fails fast on a Slack error response rather than retrying it', async () => {
+		vi.mocked(slackApiRequest).mockRejectedValue(
+			new NodeApiError(node, { ok: false, error: 'invalid_auth' }),
+		);
+
+		const { ctx } = makeCtx('trigger', { lastMaxTs: 1784589177 });
+		await expect(poll(ctx)).rejects.toThrow();
+		expect(slackApiRequest).toHaveBeenCalledTimes(1);
 	});
 });
 

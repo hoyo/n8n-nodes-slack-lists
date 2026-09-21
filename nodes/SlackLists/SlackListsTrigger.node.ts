@@ -8,6 +8,7 @@ import type {
 import { NodeConnectionTypes } from 'n8n-workflow';
 import { getLists } from './methods/listSearch';
 import { listRLC } from './shared/descriptions';
+import { retryOnTransientError } from './shared/retry';
 import { getListInfo } from './shared/schema';
 import { toIsoString } from './shared/utils';
 
@@ -60,7 +61,10 @@ export class SlackListsTrigger implements INodeType {
 	async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
 		const listId = this.getNodeParameter('list', '', { extractValue: true }) as string;
 
-		const { file } = await getListInfo.call(this, listId);
+		// A polling trigger gets no second chance from n8n: any error here goes
+		// straight to the error workflow, so a one-off network blip would page the
+		// user. Absorb those here; Slack's own error responses still surface at once.
+		const { file } = await retryOnTransientError(async () => await getListInfo.call(this, listId));
 		const currentMaxTs = Math.max(Number(file.updated ?? 0), Number(file.edit_timestamp ?? 0));
 		const output = buildListUpdateOutput(file, currentMaxTs);
 

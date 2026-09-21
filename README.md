@@ -89,6 +89,7 @@ How detection works:
 - Each poll reads the List's **whole-List last-edit time** — `max(updated, edit_timestamp)` from `files.info` — and fires only when it advances past the previous poll.
 - The **first poll after activation does not fire**; it just records the current state, so an existing List does not trigger a spurious run on activation.
 - Polls with no change return nothing and are **not** kept in the executions list, so a 1-minute interval does not clutter your history.
+- A poll that fails on a **transient network error** (connection timeout/reset, DNS hiccup, Slack `429`/`5xx`) is retried up to 3 times, 5 seconds apart, before the error is reported. n8n's own **Retry on Fail** node setting does not apply to polling triggers, so the node handles this itself. Slack's own errors (`invalid_auth`, `list_not_found`, …) are reported immediately without retrying.
 - Output is a single item describing *when / who / which List* changed — handy as an audit trail:
 
   ```json
@@ -186,6 +187,7 @@ The Get a List operation is handy for agents: it returns the List's column schem
 | `missing_scope` | The token lacks a required OAuth scope (the message names the missing one) | Add `lists:read` / `lists:write` / `files:read` in the Slack app and **reinstall** it |
 | `paid_teams_only` | Slack Lists are not available on free plans | Upgrade the workspace to a paid plan |
 | `list_not_found` / `access_denied` | The token cannot see the List | Share the List (or its channel) with the app's bot user, or use a user token with access |
+| Trigger occasionally reports `ETIMEDOUT` / `ECONNRESET` | The poll could not reach Slack 3 times in a row (retries are built in) | Usually a temporary network problem; if it persists, check egress/proxy settings from the n8n host to `slack.com` |
 | List picker shows nothing | `files:read` missing, or no Lists are visible to the token | Add the scope; paste the List URL / ID directly as an alternative |
 | "Custom API Call" appears in dropdowns | Injected automatically by n8n for all nodes with authenticated credentials — not implemented by this node | Use the HTTP Request node with your Slack credential for uncovered API methods |
 
